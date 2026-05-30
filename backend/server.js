@@ -1,0 +1,164 @@
+require('dotenv').config()
+const express = require('express')
+const mongoose = require('mongoose')
+const cors = require('cors')
+
+const fs = require("fs")
+const path = require("path")
+
+const Forms = require('./models/InputForm')
+
+const app = express()
+app.use(express.json())
+app.use(cors())
+
+
+const multer = require("multer");
+
+const {
+  uploadImage,
+  deleteImage,
+} = require("./s3");
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
+
+app.post("/upload", upload.array("images", 10), async (req, res) => {
+  try {
+    const files = req.files;
+
+    const uploadedImages = [];
+
+    for (const file of files) {
+      const fileName = `${Date.now()}-${file.originalname}`;
+
+      await uploadImage(
+        file.buffer,
+        fileName,
+        file.mimetype
+      );
+
+      const url = `https://${process.env.AWS_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+
+      uploadedImages.push({
+        fileName,
+        url,
+      });
+    }
+
+    res.json({
+      success: true,
+      images: uploadedImages,
+    });
+
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      error: "Erro upload múltiplo",
+    });
+  }
+});
+
+app.delete("/image/:name", async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    const result = await deleteImage(name);
+
+    res.json(result);
+
+  } catch (err) {
+    console.log(err);
+
+    res.status(500).json({
+      error: "Erro ao deletar imagem",
+    });
+  }
+});
+
+app.listen(3000, () => {
+  console.log("Server rodando");
+});
+
+
+
+app.get('/forms', async (req, res) => {
+    try {
+        const forms = await Forms.find()
+        res.json(forms)
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({erro: error.message})
+    }  
+})
+
+
+app.post("/forms/options", async (req, res) => {
+  try {
+    const {
+      categoria,
+      cor,
+      desenho,
+    } = req.body;
+
+    const form = await Forms.findOne();
+
+    /*
+    =========================
+    CATEGORIA
+    =========================
+    */
+
+    if (
+      categoria &&
+      !form.categorias.includes(categoria)
+    ) {
+      form.categorias.push(categoria);
+    }
+
+    /*
+    =========================
+    COR
+    =========================
+    */
+
+    if (
+      cor &&
+      !form.cores.includes(cor)
+    ) {
+      form.cores.push(cor);
+    }
+
+    /*
+    =========================
+    DESENHO
+    =========================
+    */
+
+    if (
+      desenho &&
+      !form.desenhos.includes(desenho)
+    ) {
+      form.desenhos.push(desenho);
+    }
+
+    await form.save();
+
+    res.json({
+      success: true,
+      form,
+    });
+
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      erro: error.message,
+    });
+  }
+});
+
+
+
