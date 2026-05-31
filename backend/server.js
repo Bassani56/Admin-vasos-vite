@@ -78,10 +78,6 @@ app.delete("/image/:name", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server rodando");
-});
-
 
 app.get('/forms', async (req, res) => {
     try {
@@ -235,7 +231,83 @@ app.put('/products/:id', async (req, res) => {
   }
 });
 
+app.delete('/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the product first to get all image filenames
+    const produto = await Produto.findById(id);
+    if (!produto) {
+      return res.status(404).json({ erro: 'Produto não encontrado' });
+    }
+
+    // Collect all filenames to delete from S3
+    const filesToDelete = [];
+
+    // Add general images
+    if (Array.isArray(produto.imagem_geral)) {
+      produto.imagem_geral.forEach(img => {
+        if (img.filename) filesToDelete.push(img.filename);
+      });
+    }
+
+    // Add color-based images
+    if (Array.isArray(produto.imagens_por_cor)) {
+      produto.imagens_por_cor.forEach(bucket => {
+        if (Array.isArray(bucket.imagens)) {
+          bucket.imagens.forEach(img => {
+            if (img.filename) filesToDelete.push(img.filename);
+          });
+        }
+      });
+    }
+
+    // Add variant images
+    if (Array.isArray(produto.variantes)) {
+      produto.variantes.forEach(variant => {
+        if (variant.imagem && variant.imagem.filename) {
+          filesToDelete.push(variant.imagem.filename);
+        }
+        if (Array.isArray(variant.imagens)) {
+          variant.imagens.forEach(img => {
+            if (img.filename) filesToDelete.push(img.filename);
+          });
+        }
+      });
+    }
+
+    // Delete all images from S3
+    for (const filename of filesToDelete) {
+      try {
+        await deleteImage(filename);
+      } catch (err) {
+        console.error(`Erro ao deletar imagem ${filename}:`, err);
+      }
+    }
+
+    // Delete the product from MongoDB
+    await Produto.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: 'Produto e todas as imagens deletados com sucesso',
+      deletedImages: filesToDelete.length
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      erro: error.message || 'Erro ao deletar produto'
+    });
+  }
+});
+
 
 mongoose.connect(process.env.MONGO_URI, {
     dbName: 'meu_banco'
 })
+
+
+
+app.listen(3000, () => {
+  console.log("Server rodando");
+});

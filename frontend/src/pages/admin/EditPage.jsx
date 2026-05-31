@@ -5,6 +5,7 @@ export default function EditPage() {
   const [products, setProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [editorData, setEditorData] = useState(null);
+  const [newCategory, setNewCategory] = useState("");
   const [uploading, setUploading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -120,6 +121,34 @@ export default function EditPage() {
   const updateProductTitle = (newTitle) => {
     if (!editorData) return;
     setEditorData((prev) => (prev ? { ...prev, titulo_geral: newTitle } : prev));
+  };
+
+  const addCategory = () => {
+    if (!editorData) return;
+    const category = newCategory.trim();
+    if (!category) return;
+
+    setEditorData((prev) => {
+      if (!prev) return prev;
+      const nextCategories = Array.isArray(prev.categorias) ? [...prev.categorias] : [];
+      if (!nextCategories.includes(category)) {
+        nextCategories.push(category);
+      }
+      return { ...prev, categorias: nextCategories };
+    });
+
+    setNewCategory("");
+  };
+
+  const removeCategory = (index) => {
+    if (!editorData) return;
+    setEditorData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        categorias: (prev.categorias || []).filter((_, i) => i !== index),
+      };
+    });
   };
 
   const addVariant = () => {
@@ -268,6 +297,7 @@ export default function EditPage() {
 
       const payload = {
         titulo_geral: editorData.titulo_geral,
+        categorias: editorData.categorias || [],
         imagem_geral: normalizeImages(editorData.imagem_geral),
         imagens_por_cor: normalizeColorBuckets(editorData.imagens_por_cor),
         variantes: editorData.variantes || [],
@@ -306,6 +336,55 @@ export default function EditPage() {
     } catch (err) {
       console.error(err);
       setStatusMessage(`Erro ao salvar produto: ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editorData) return;
+    const id = editorData.id || editorData._id;
+    if (!id) {
+      setStatusMessage("Produto inválido para deletar.");
+      return;
+    }
+
+    // Confirm deletion
+    const confirmed = window.confirm(
+      `Tem certeza que deseja deletar o produto "${editorData.titulo_geral}"?\n\nEsta ação não pode ser desfeita. Todas as imagens serão deletadas do AWS também.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setUploading(true);
+      setStatusMessage("Deletando produto e imagens...");
+
+      const res = await fetch(`http://localhost:3000/products/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.erro || "Falha ao deletar produto");
+      }
+
+      setStatusMessage("Produto deletado com sucesso.");
+      
+      // Remove from products list
+      setProducts((prev) =>
+        prev.filter((product) => product._id !== id && product.id !== id)
+      );
+      
+      // Clear editor
+      setEditorData(null);
+      setSelectedProductId(null);
+    } catch (err) {
+      console.error(err);
+      setStatusMessage(`Erro ao deletar produto: ${err.message}`);
     } finally {
       setUploading(false);
     }
@@ -405,6 +484,47 @@ export default function EditPage() {
                 onChange={(e) => updateProductTitle(e.target.value)}
                 style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ddd", boxSizing: "border-box" }}
               />
+            </div>
+
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>Categorias</label>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                <input
+                  type="text"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="Adicionar categoria"
+                  style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid #ddd", boxSizing: "border-box" }}
+                />
+                <button
+                  type="button"
+                  onClick={addCategory}
+                  style={{ padding: "10px 16px", background: "#007BFF", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}
+                >
+                  Adicionar
+                </button>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
+                {(editorData.categorias || []).length > 0 ? (
+                  (editorData.categorias || []).map((category, index) => (
+                    <div
+                      key={`${category}-${index}`}
+                      style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f3f4f6", padding: "8px 12px", borderRadius: "999px" }}
+                    >
+                      <span>{category}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeCategory(index)}
+                        style={{ background: "transparent", border: "none", color: "#dc3545", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ margin: 0, color: "#666" }}>Nenhuma categoria definida.</p>
+                )}
+              </div>
             </div>
 
             <h4>Variantes</h4>
@@ -516,16 +636,27 @@ export default function EditPage() {
             </button>
           </section>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={uploading}
-            style={{ padding: "12px 20px", background: "#007BFF", color: "white", border: "none", borderRadius: "6px", cursor: uploading ? "not-allowed" : "pointer" }}
-          >
-            {uploading ? "Salvando..." : "Salvar alterações"}
-          </button>
+          <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={uploading}
+              style={{ padding: "12px 20px", background: "#007BFF", color: "white", border: "none", borderRadius: "6px", cursor: uploading ? "not-allowed" : "pointer" }}
+            >
+              {uploading ? "Salvando..." : "Salvar alterações"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={uploading}
+              style={{ padding: "12px 20px", background: "#dc3545", color: "white", border: "none", borderRadius: "6px", cursor: uploading ? "not-allowed" : "pointer" }}
+            >
+              {uploading ? "Deletando..." : "Deletar Produto"}
+            </button>
+          </div>
         </div>
       )}
+      <a href="/admin" >Adcionar Produto</a>
     </div>
   );
 }

@@ -58,6 +58,8 @@ export default function AdminPage() {
             const data = await res.json();
             const form = data[0];
 
+            console.log("Formulário carregado:", form);
+
             setAvailableCategorias(form.categorias || []);
             setAvailableCores(form.cores || []);
             setAvailableDesenhos(form.desenhos || []);
@@ -327,6 +329,7 @@ export default function AdminPage() {
         const produto = {
             ativo: true,
             titulo_geral: titulo,
+            categorias,
             descricao: "",
             imagem_geral,
             imagens_por_cor,
@@ -360,6 +363,10 @@ export default function AdminPage() {
 
   return (
     <div className="admin-card-container">
+        <div>
+            <a href="/edit" >Voltar</a> <br />
+        <a href="/catalogo">Ver Catalogo</a>
+        </div>
       <div className="admin-card">
         {/* ================= ERRO ================= */}
         {errors && (

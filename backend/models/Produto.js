@@ -37,6 +37,7 @@ const ProdutoSchema = new mongoose.Schema({
   id: { type: Number },
   ativo: { type: Boolean, default: true },
   titulo_geral: { type: String },
+  categorias: [{ type: String }],
   descricao: { type: String, default: "" },
   imagem_geral: [ImagemSchema],
   imagens_por_cor: [CorImagemSchema],
