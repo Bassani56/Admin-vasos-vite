@@ -205,11 +205,20 @@ app.put('/products/:id', async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    const updated = await Produto.findOneAndUpdate(
-      { $or: [{ _id: id }, { id: Number(id) }] },
-      updateData,
-      { new: true, runValidators: true }
-    );
+    // const updated = await Produto.findOneAndUpdate(
+    //   { $or: [{ _id: id }, { id: Number(id) }] },
+    //   updateData,
+    //   { new: true, runValidators: true }
+    // );
+
+    const updated = await Produto.findByIdAndUpdate(
+  id,
+  updateData,
+  {
+    new: true,
+    runValidators: true
+  }
+);
 
     if (!updated) {
       return res.status(404).json({ erro: 'Produto não encontrado' });

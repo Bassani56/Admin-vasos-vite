@@ -72,7 +72,10 @@ export default function EditPage() {
     }
     if (product.imagem_geral && product.imagem_geral.url) return product.imagem_geral.url;
     if (Array.isArray(product.imagem_geral) && product.imagem_geral.length > 0) return product.imagem_geral[0].url;
-    return "";
+
+    console.log("Produto sem imagem encontrada:", product);
+
+    return null;
   };
 
   const imageTypes = (() => {
@@ -250,6 +253,8 @@ export default function EditPage() {
   };
 
   const handleSave = async () => {
+    console.log("Salvando produto:", editorData);
+
     if (!editorData) return;
     const id = editorData.id || editorData._id;
     if (!id) {
