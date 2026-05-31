@@ -4,6 +4,8 @@ import "./adminpage.css";
 export default function AdminPage() {
   const [titulo, setTitulo] = useState("");
   const [files, setFiles] = useState([]);
+  const [naturalFiles, setNaturalFiles] = useState([]);
+  const [colorImages, setColorImages] = useState({});
   const [errors, setErrors] = useState("");
 
   /* ========================================= DADOS ESCOLHIDOS =========================================*/
@@ -15,17 +17,13 @@ export default function AdminPage() {
   /*========================================= INPUTS NOVOS =========================================*/
 
   const [categoriaInput, setCategoriaInput] = useState("");
-
   const [corInput, setCorInput] = useState("");
-
   const [desenhoInput, setDesenhoInput] = useState("");
 
   /* ========================================= OPÇÕES VINDAS DO BANCO ========================================= */
 
   const [availableCategorias, setAvailableCategorias,] = useState([]);
-
   const [availableCores, setAvailableCores] = useState([]);
-
   const [availableDesenhos, setAvailableDesenhos,] = useState([]);
 
   /* ========================================= PREÇOS =========================================*/
@@ -61,9 +59,7 @@ export default function AdminPage() {
             const form = data[0];
 
             setAvailableCategorias(form.categorias || []);
-
             setAvailableCores(form.cores || []);
-
             setAvailableDesenhos(form.desenhos || []);
 
         } catch (err) {
@@ -94,6 +90,33 @@ export default function AdminPage() {
 
   function removeItem( index, list, setter) {
     setter(list.filter((_, i) => i !== index));
+  }
+
+  function removeColor(index) {
+    const color = cores[index];
+    setCores((prev) => prev.filter((_, i) => i !== index));
+    setColorImages((prev) => {
+      const next = { ...prev };
+      delete next[color];
+      return next;
+    });
+  }
+
+  function setColorFiles(color, files) {
+    setColorImages((prev) => ({
+      ...prev,
+      [color]: Array.from(files),
+    }));
+  }
+
+  function removeColorFile(color, index) {
+    setColorImages((prev) => {
+      const current = prev[color] || [];
+      return {
+        ...prev,
+        [color]: current.filter((_, i) => i !== index),
+      };
+    });
   }
 
   /* ========================================= VARIAÇÕES ========================================= */
@@ -147,10 +170,11 @@ export default function AdminPage() {
 
   /* ========================================= UPLOAD AWS ========================================= */
 
-  async function uploadImages() {
-    const formData = new FormData();
+  async function uploadImages(filesToUpload) {
+    if (!filesToUpload || filesToUpload.length === 0) return [];
 
-    files.forEach((file) => {formData.append("images", file);});
+    const formData = new FormData();
+    filesToUpload.forEach((file) => {formData.append("images", file);});
 
     const res = await fetch(
         "http://localhost:3000/upload",
@@ -161,7 +185,7 @@ export default function AdminPage() {
     );
 
     const data = await res.json();
-    return data.images;
+    return Array.isArray(data.images) ? data.images : [];
   }
 
   /* ========================================= VALIDATE ========================================= */
@@ -173,10 +197,6 @@ export default function AdminPage() {
 
     if (categorias.length === 0) {
         return "Escolha uma categoria";
-    }
-
-    if (files.length === 0) {
-        return "Adicione imagens";
     }
 
     for (const type of [
@@ -208,46 +228,124 @@ export default function AdminPage() {
         try {
         /* ======================== upload imagens ======================== */
 
-        const uploadedImages =
-            await uploadImages();
+        const uploadedImages = await uploadImages(files);
+        const uploadedNaturalImages = await uploadImages(naturalFiles);
 
-        /* ======================== produto final ======================== */
+        const uploadedColorImages = {};
+        for (const color of cores) {
+          const colorFilesForUpload = colorImages[color] || [];
+          if (colorFilesForUpload.length > 0) {
+            const images = await uploadImages(colorFilesForUpload);
+            if (images.length > 0) {
+              uploadedColorImages[color] = images.map((img) => ({ url: img.url, filename: img.fileName }));
+            }
+          }
+        }
 
-        const produto = {
-            titulo,
-            categoria: categorias,
-            preco: [
-            {
-                natural:
-                preco.natural,
+        const imagens_por_cor = [];
+        if (uploadedNaturalImages.length > 0) {
+          imagens_por_cor.push({
+            cor: "natural",
+            imagens: uploadedNaturalImages.map((img) => ({ url: img.url, filename: img.fileName })),
+          });
+        }
 
-                pintado:
-                preco.pintado,
-            },
-            ],
+        Object.entries(uploadedColorImages).forEach(([color, images]) => {
+          imagens_por_cor.push({ cor: color, imagens: images });
+        });
 
-            cor: cores,
-            desenho: desenhos,
-            imagens: uploadedImages,
+        /* ======================== produto final no formato teste.json ======================== */
+
+        const parseNumber = (value) => {
+            if (value === null || value === undefined) return null;
+            const normalized = String(value).trim().replace(/\./g, '').replace(/,/g, '.');
+            const parsed = Number(normalized);
+            return Number.isNaN(parsed) ? null : parsed;
         };
 
-        console.log(produto);
+        // imagem_geral: usa todas as imagens enviadas
+        const imagem_geral = uploadedImages && uploadedImages.length > 0
+            ? uploadedImages.map(img => ({ url: img.url, filename: img.fileName }))
+            : [];
 
-        /* ======================== salvar produto ========================*/
+        const variantes = [];
 
-        await fetch(
+        // Natural: gera uma variante para cada dimensão informada em preco.natural
+        preco.natural.forEach(item => {
+            const altura = parseNumber(item.height);
+            const largura = parseNumber(item.width);
+            const tamanho = altura && largura ? `${altura}x${largura}` : null;
+            const precoItem = parseNumber(item.price) || 0;
+
+            variantes.push({
+                id: `natural-${tamanho || 'na'}`,
+                titulo: null,
+                imagem: { url: null, filename: null },
+                acabamento: 'natural',
+                desenho: desenhos[0] || null,
+                tamanho,
+                dimensoes: { altura, largura },
+                preco: precoItem
+            });
+        });
+
+        // Pintado: para cada dimensão e para cada cor selecionada, cria variante
+        preco.pintado.forEach(item => {
+            const altura = parseNumber(item.height);
+            const largura = parseNumber(item.width);
+            const tamanho = altura && largura ? `${altura}x${largura}` : null;
+            const precoItem = parseNumber(item.price) || 0;
+
+            // se não houver cores selecionadas, cria uma variante genérica 'pintado'
+            if (!cores || cores.length === 0) {
+                variantes.push({
+                    id: `pintado-${tamanho || 'na'}`,
+                    titulo: null,
+                    imagem: { url: null, filename: null },
+                    acabamento: 'pintado',
+                    desenho: desenhos[0] || null,
+                    tamanho,
+                    dimensoes: { altura, largura },
+                    preco: precoItem
+                });
+            } else {
+                cores.forEach(cor => {
+                    variantes.push({
+                        id: `${cor}-${tamanho || 'na'}`,
+                        titulo: null,
+                        imagem: { url: null, filename: null },
+                        acabamento: cor,
+                        desenho: desenhos[0] || null,
+                        tamanho,
+                        dimensoes: { altura, largura },
+                        preco: precoItem
+                    });
+                });
+            }
+        });
+
+        const produto = {
+            ativo: true,
+            titulo_geral: titulo,
+            descricao: "",
+            imagem_geral,
+            imagens_por_cor,
+            variantes
+        };
+
+        console.log('Produto JSON:', produto);
+
+        /* ======================== salvar produto no banco ========================*/
+        const resp = await fetch(
             "http://localhost:3000/products",
             {
-            method: "POST",
-            headers: {
-                "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify(
-                produto
-            ),
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(produto)
             }
         );
+
+        if (!resp.ok) throw new Error('Erro ao salvar produto');
 
         alert("Produto salvo com sucesso!");
 
@@ -469,11 +567,7 @@ export default function AdminPage() {
 
                     <button
                         onClick={() =>
-                        removeItem(
-                            index,
-                            cores,
-                            setCores
-                        )
+                        removeColor(index)
                         }
                     >
                         ✕
@@ -600,7 +694,7 @@ export default function AdminPage() {
 
         <div className="admin-section">
 
-            <h3>Imagens</h3>
+            <h3>Imagens gerais</h3>
 
             <input
                 type="file"
@@ -639,6 +733,90 @@ export default function AdminPage() {
 
             </div>
 
+        </div>
+
+        {/* ===================================== */}
+        {/* NATURAL IMAGES */}
+
+        <div className="admin-section">
+
+            <h3>Imagens Natural</h3>
+
+            <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) =>
+                setNaturalFiles(
+                    Array.from(
+                    e.target.files
+                    )
+                )
+                }
+            />
+
+            <div className="admin-image-preview">
+
+                {naturalFiles.map(
+                    (file, index) => (
+                        <div className="admin-img-box" key={index} >
+
+                            <img
+                                src={URL.createObjectURL(file)}
+                                alt="preview"
+                            />
+
+                            <button
+                                onClick={() =>
+                                    setNaturalFiles( naturalFiles.filter( ( _, i) => i !== index))
+                                }
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    )
+                )}
+
+            </div>
+
+        </div>
+
+        {/* ===================================== */}
+        {/* IMAGENS POR COR */}
+
+        <div className="admin-section">
+            <h3>Imagens por cor</h3>
+            {cores.length === 0 && (
+                <p>Adicione cores para ver as opções de upload por cor.</p>
+            )}
+            {cores.map((color, index) => (
+                <div key={color} className="admin-color-upload">
+                    <h4>{color}</h4>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) =>
+                            setColorFiles(color, e.target.files)
+                        }
+                    />
+                    <div className="admin-image-preview">
+                        {(colorImages[color] || []).map((file, fileIndex) => (
+                            <div className="admin-img-box" key={`${color}-${fileIndex}`}> 
+                                <img
+                                    src={URL.createObjectURL(file)}
+                                    alt={`${color} preview`}
+                                />
+                                <button
+                                    onClick={() => removeColorFile(color, fileIndex)}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
         </div>
 
         {/* ===================================== */}

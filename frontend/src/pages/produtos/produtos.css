@@ -1,0 +1,176 @@
+body{
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.edit-container-produto {
+    width: 100vw;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+    padding: 20px;
+}
+
+    .central-container-produto {
+        width: 100%;
+        max-width: 1200px;
+        padding: 32px;
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        display: grid;
+        gap: 24px;
+        grid-template-columns: 120px 1fr 1fr;
+    }
+
+        .produtos-variacoes {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: fit-content;
+            border: 1px solid #e0e0e0;
+        }
+
+        .imagem-principal{
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #e0e0e0;
+            min-height: 400px;
+        }
+
+            .imagem-principal img{
+                max-width: 100%;
+                height: auto;
+                border-radius: 8px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+            }
+
+        .produtos-descricao{
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .produtos-descricao h1 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .preco-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preco-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .preco-valor {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            color: #8b4c4c;
+        }
+
+        .variacao-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .variacao-titulo {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 0.5px;
+        }
+
+        .botoes-variacao {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-variacao {
+            padding: 10px 16px;
+            border: 2px solid #ddd;
+            background-color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .btn-variacao:hover {
+            border-color: #8b4c4c;
+            color: #8b4c4c;
+        }
+
+        .btn-variacao.selecionado {
+            background-color: #8b4c4c;
+            color: #fff;
+            border-color: #8b4c4c;
+            box-shadow: 0 4px 12px rgba(139, 76, 76, 0.3);
+        }
+
+        .btn-variacao.selecionado:hover {
+            background-color: #7a4141;
+            border-color: #7a4141;
+            box-shadow: 0 6px 16px rgba(139, 76, 76, 0.4);
+        }
+
+        .acabamento-tipo-container {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 6px;
+        }
+
+        .btn-tipo {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            background-color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            color: #555;
+            transition: all 0.25s ease;
+        }
+
+        .btn-tipo.selecionado {
+            background-color: #8b4c4c;
+            color: #fff;
+            border-color: #8b4c4c;
+        }
+
+        select {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: #fff;
+            font-size: 14px;
+        }

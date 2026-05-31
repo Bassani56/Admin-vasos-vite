@@ -83,7 +83,6 @@ app.listen(3000, () => {
 });
 
 
-
 app.get('/forms', async (req, res) => {
     try {
         const forms = await Forms.find()
@@ -161,4 +160,73 @@ app.post("/forms/options", async (req, res) => {
 });
 
 
+const Produto = require('./models/Produto')
 
+app.get('/produtos', async (req, res) => {
+    try {
+        const produtos = await Produto.find()
+        res.json(produtos)
+        
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({erro: error.message})
+    }
+})
+
+app.get('/produtos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const produto = await Produto.findOne({ $or: [{ _id: id }, { id: Number(id) }] });
+    if (!produto) {
+      return res.status(404).json({ erro: 'Produto não encontrado' });
+    }
+    res.json(produto);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: error.message });
+  }
+});
+
+app.post('/products', async (req, res) => {
+  try {
+    const produtoData = req.body;
+
+    const created = await Produto.create(produtoData);
+
+    res.json(created);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: error.message });
+  }
+});
+
+app.put('/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const updated = await Produto.findOneAndUpdate(
+      { $or: [{ _id: id }, { id: Number(id) }] },
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ erro: 'Produto não encontrado' });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      erro: error.message || 'Erro ao atualizar produto',
+      details: error.errors ? Object.keys(error.errors).map(key => error.errors[key].message) : []
+    });
+    res.status(500).json({ erro: error.message });
+  }
+});
+
+
+mongoose.connect(process.env.MONGO_URI, {
+    dbName: 'meu_banco'
+})
